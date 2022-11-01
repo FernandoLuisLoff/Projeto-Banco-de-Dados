@@ -1,0 +1,19 @@
+Requisitos da terceira etapa:
+
+X - 1o. view que exiba todas todos os produtos comercializados e seu estoque atual.
+
+X - 2o. view que exiba todas as vendas realizadas com seus quantidade, produto e qual cliente comprou, ordenadas por data, cliente e produto.
+
+- 4 procedures de CRUD (insert, delete, update e select) da tabela clientes.
+
+- 1 procedure que receba como parâmetro o nome de um cliente, e imprima todas as vendas que este cliente esta vinculado, e totalize o total que este cliente pagou (somar todas as vendas)
+
+- 1 procedure que receba como parâmetro um produto e exiba todas as movimentações deste produto (seja venda ou compra) com as quantidades e data.
+
+- 1 trigger na tabela produto_vendido que ao fazer um insert, update ou delete faça a atualização do estoque do respectivo produto.
+
+- 1 trigger na tabela lotes que ao fazer um insert, update ou delete faça a atualização do estoque do respectivo produto.
+
+- 1 trigger de log da tabela venda, deve ser logada toda a operação de realizada na tabela, armazenado o registro anterior, posterior, data e hora, usuário, e qual operação realizada. Criar uma tabela para armazenar este log.
+
+- 1 trigger de log da tabela despesas, deve ser logada toda a operação de realizada na tabela, armazenado o registro anterior, posterior, data e hora, usuário, e qual operação realizada. Criar uma tabela para armazenar este log.
