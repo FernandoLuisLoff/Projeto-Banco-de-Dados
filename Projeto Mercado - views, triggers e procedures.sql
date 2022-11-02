@@ -1,4 +1,192 @@
 
+-------- VIEWS --------  
+
+    -------- CREATE VIEW V_PRODUTOS --------
+    -- 1o. view que exiba todas todos os produtos comercializados e seu estoque atual.
+        CREATE OR REPLACE VIEW V_PRODUTOS
+        AS SELECT A.produto, B.qtd_atual
+        FROM PRODUTOS A
+        INNER JOIN ESTOQUE B ON (A.COD_PRODUTO = B.PRODUTO)
+        WHERE B.COD_ESTOQUE IN
+        (SELECT MAX(A.COD_ESTOQUE)
+        FROM ESTOQUE A
+        INNER JOIN PRODUTOS B ON (B.COD_PRODUTO = A.PRODUTO)
+        GROUP BY B.PRODUTO);
+
+    -------- CREATE VIEW V_VENDAS --------
+    -- 2o. view que exiba todas as vendas realizadas com seus quantidade, produto e qual cliente comprou, ordenadas por data, cliente e produto.
+        CREATE OR REPLACE VIEW V_VENDAS 
+        AS SELECT C.NOME, D.PRODUTO, B.QTD_VENDIDA
+        FROM VENDAS A
+        LEFT JOIN PRODUTO_VENDIDO B ON (B.COD_VENDAS = A.COD_VENDAS)
+        LEFT JOIN PESSOAS C ON (C.COD_PESSOA = A.PESSOA)
+        LEFT JOIN PRODUTOS D ON (D.COD_PRODUTO = B.PRODUTO)
+        ORDER BY A.DATA_VENDA, C.NOME, D.PRODUTO;
+
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+-------- PROCEDURES --------
+
+    -------- PROCEDURES CRUD --------
+    -- 4 procedures de CRUD (insert, delete, update e select) da tabela clientes.  
+
+        -------- FUNCTION DE INSERT --------
+        CREATE OR REPLACE FUNCTION INS_PESSOA
+        (
+            VNOME VARCHAR(30),
+            VRG VARCHAR(9),
+            VCPF_CNPJ VARCHAR(14),
+            VSALARIO NUMERIC,
+            VRUA VARCHAR(30),
+            VNUMERO VARCHAR(5),
+            VBAIRRO VARCHAR(30),
+            VCEP VARCHAR(8),
+            VCODTIPOPESSOA INTEGER,
+            VCODCIDADE INTEGER
+        ) RETURNS INTEGER AS $$
+        DECLARE 
+            VCODPESSOA INTEGER;
+        BEGIN
+            INSERT INTO PESSOAS( NOME, RG, CPF_CNPJ, SALARIO, RUA, NUMERO, BAIRRO, CEP, TIPOS_PESSOA, CIDADE)
+            VALUES ( VNOME, VRG, VCPF_CNPJ, VSALARIO, VRUA, VNUMERO, VBAIRRO, VCEP, VCODTIPOPESSOA, VCODCIDADE)
+            RETURNING COD_PESSOA INTO VCODPESSOA;
+            RETURN VCODPESSOA;
+        END;
+        $$ LANGUAGE plpgsql;
+
+        -------- FUNCTION DE DELETE --------
+        CREATE OR REPLACE FUNCTION DEL_PESSOA
+        (
+            VCODPESSOA INTEGER
+        ) RETURNS INTEGER AS $$
+        DECLARE
+            VSTATUS INTEGER;
+        BEGIN
+            DELETE FROM PESSOAS 
+            WHERE COD_PESSOA = VCODPESSOA;
+            IF (FOUND = TRUE) THEN
+                VSTATUS:= 1;
+            ELSE
+                VSTATUS:= -1;
+            END IF;
+            RETURN VSTATUS;
+        END;
+        $$ LANGUAGE plpgsql;
+
+        -------- FUNCTION DE UPDATE --------
+        CREATE OR REPLACE FUNCTION UPD_PESSOA
+        (
+            VCODPESSOA INTEGER,
+            VNOME VARCHAR(30),
+            VRG VARCHAR(9),
+            VCPF_CNPJ VARCHAR(14),
+            VSALARIO NUMERIC,
+            VRUA VARCHAR(30),
+            VNUMERO VARCHAR(5),
+            VBAIRRO VARCHAR(30),
+            VCEP VARCHAR(8),
+            VCODTIPOPESSOA INTEGER,
+            VCODCIDADE INTEGER
+        ) RETURNS INTEGER AS $$
+        DECLARE
+            VSTATUS INTEGER;
+        BEGIN
+            UPDATE PESSOAS 
+            SET NOME = VNOME,
+                RG = VRG,
+                CPF_CNPJ = VCPF_CNPJ,
+                SALARIO = VSALARIO,
+                RUA = VRUA,
+                NUMERO = VNUMERO,
+                BAIRRO = VBAIRRO,
+                CEP = VCEP,
+                TIPOS_PESSOA = VCODTIPOPESSOA,
+                CIDADE = VCODCIDADE
+            WHERE COD_PESSOA = VCODPESSOA;
+            IF (FOUND = TRUE) THEN
+                VSTATUS:= 1;
+            ELSE
+                VSTATUS:= -1;
+            END IF;
+            RETURN VSTATUS;
+        END;
+        $$ LANGUAGE plpgsql;
+
+        -------- FUNCTION DE SELECT --------
+        CREATE OR REPLACE FUNCTION SEL_PESSOA 
+        (
+            VCODPESSOA INTEGER DEFAULT NULL,
+            VNOME VARCHAR(30) DEFAULT NULL,
+            VRG VARCHAR(9) DEFAULT NULL,
+            VCPF_CNPJ VARCHAR(14) DEFAULT NULL,
+            VSALARIO NUMERIC DEFAULT NULL,
+            VRUA VARCHAR(30) DEFAULT NULL,
+            VNUMERO VARCHAR(5) DEFAULT NULL,
+            VBAIRRO VARCHAR(30) DEFAULT NULL,
+            VCEP VARCHAR(8) DEFAULT NULL,
+            VCODTIPOPESSOA INTEGER DEFAULT NULL,
+            VCODCIDADE INTEGER DEFAULT NULL
+        ) RETURNS TABLE (
+            RCODPESSOA INTEGER,
+            RNOME VARCHAR(30),
+            RRG VARCHAR(9),
+            RCPF_CNPJ VARCHAR(14),
+            RSALARIO NUMERIC,
+            RRUA VARCHAR(30),
+            RNUMERO VARCHAR(5),
+            RBAIRRO VARCHAR(30),
+            RCEP VARCHAR(8),
+            RCODTIPOPESSOA INTEGER,
+            RCODCIDADE INTEGER) AS $$
+        BEGIN
+            RETURN QUERY SELECT COD_PESSOA,
+                NOME,
+                RG,
+                CPF_CNPJ,
+                SALARIO,
+                RUA,
+                NUMERO,
+                BAIRRO,
+                CEP,
+                TIPOS_PESSOA,
+                CIDADE
+            FROM PESSOAS
+            WHERE ((VCODPESSOA IS NULL) OR (COD_PESSOA = VCODPESSOA))
+            AND ((VNOME IS NULL) OR (NOME like VNOME||'%'))
+            AND ((VRG IS NULL) OR (RG like VRG||'%'))
+            AND ((VCPF_CNPJ IS NULL) OR (CPF_CNPJ like VCPF_CNPJ||'%'))
+            AND ((VSALARIO IS NULL) OR (SALARIO = VSALARIO))
+            AND ((VRUA IS NULL) OR (RUA like VRUA||'%'))
+            AND ((VNUMERO IS NULL) OR (NUMERO like VNUMERO||'%'))
+            AND ((VBAIRRO IS NULL) OR (BAIRRO like VBAIRRO||'%'))
+            AND ((VCEP IS NULL) OR (CEP like VCEP||'%'))					   
+            AND ((VCODTIPOPESSOA IS NULL) OR (TIPOS_PESSOA = VCODTIPOPESSOA))
+            AND ((VCODCIDADE IS NULL) OR (CIDADE = VCODCIDADE));
+            RETURN;
+        END;
+        $$ LANGUAGE plpgsql
+        CALLED ON NULL INPUT;
+
+-- 1 procedure que receba como parâmetro o nome de um cliente, e imprima todas as vendas que este cliente esta vinculado, e totalize o total que este cliente pagou (somar todas as vendas)
+
+-- 1 procedure que receba como parâmetro um produto e exiba todas as movimentações deste produto (seja venda ou compra) com as quantidades e data.
+
+-------- TRIGGERS --------
+
+    -------- TRIGGER PRODUTO_VENDIDO --------
+    -- 1 trigger na tabela produto_vendido que ao fazer um insert, update ou delete faça a atualização do estoque do respectivo produto.
+
+    -------- TRIGGER ATUALIZACAO --------
+    -- 1 trigger na tabela lotes que ao fazer um insert, update ou delete faça a atualização do estoque do respectivo produto.
+
+    -------- TRIGGER LOG_TABELA_VENDA --------
+    -- 1 trigger de log da tabela venda, deve ser logada toda a operação de realizada na tabela, armazenado o registro anterior, posterior, data e hora, usuário, e qual operação realizada. Criar uma tabela para armazenar este log.
+
+    -------- TRIGGER LOG_TABELA_DESPESAS --------
+    -- 1 trigger de log da tabela despesas, deve ser logada toda a operação de realizada na tabela, armazenado o registro anterior, posterior, data e hora, usuário, e qual operação realizada. Criar uma tabela para armazenar este log.
+
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
 -------- INSERTS --------
 
     -------- INSERTS TABELA ESTADOS --------
@@ -76,113 +264,3 @@
         INSERT INTO ESTOQUE(PRODUTO,LOTE,QTD_ANTERIOR,QTD_ATUAL,QTD_OPERACAO,DATA_ESTOQUE,TIPO_ESTOQUE,TIPO_MOVIMENTACAO,VENDA) VALUES(4,4,0,2,2,'13/10/2022',2,3,1);
         UPDATE ESTOQUE SET QTD_ANTERIOR=5, QTD_ATUAL=3, QTD_OPERACAO=2 WHERE COD_ESTOQUE=7;
         INSERT INTO ESTOQUE(PRODUTO,LOTE,QTD_ANTERIOR,QTD_ATUAL,QTD_OPERACAO,DATA_ESTOQUE,TIPO_ESTOQUE,TIPO_MOVIMENTACAO,VENDA) VALUES(2,2,0,2,2,'13/10/2022',2,3,2);
-
------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-
--------- VIEWS --------  
-
-    -------- CREATE VIEW V_PRODUTOS --------
-        CREATE OR REPLACE VIEW V_PRODUTOS
-        AS SELECT A.produto, B.qtd_atual
-        FROM PRODUTOS A
-        INNER JOIN ESTOQUE B ON (A.COD_PRODUTO = B.PRODUTO)
-        WHERE B.COD_ESTOQUE IN
-        (SELECT MAX(A.COD_ESTOQUE)
-        FROM ESTOQUE A
-        INNER JOIN PRODUTOS B ON (B.COD_PRODUTO = A.PRODUTO)
-        GROUP BY B.PRODUTO);
-
-    -------- CREATE VIEW V_VENDAS --------
-        CREATE OR REPLACE VIEW V_VENDAS 
-        AS SELECT C.NOME, D.PRODUTO, B.QTD_VENDIDA
-        FROM VENDAS A
-        LEFT JOIN PRODUTO_VENDIDO B ON (B.COD_VENDAS = A.COD_VENDAS)
-        LEFT JOIN PESSOAS C ON (C.COD_PESSOA = A.PESSOA)
-        LEFT JOIN PRODUTOS D ON (D.COD_PRODUTO = B.PRODUTO)
-        ORDER BY A.DATA_VENDA, C.NOME, D.PRODUTO;
-
------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-
--------- PROCEDURES CRUD --------  
-
-    -------- FUNCTION DE INSERT --------
-    CREATE OR REPLACE FUNCTION INS_PESSOA
-    (
-        VNOME VARCHAR(30),
-        VRG VARCHAR(9),
-        VCPF_CNPJ VARCHAR(14),
-        VSALARIO NUMERIC,
-        VRUA VARCHAR(30),
-        VNUMERO VARCHAR(5),
-        VBAIRRO VARCHAR(30),
-        VCEP VARCHAR(8),
-        VCODTIPOPESSOA INTEGER,
-        VCODCIDADE INTEGER
-    ) RETURNS INTEGER AS $$
-    DECLARE 
-        VCODPESSOA INTEGER;
-    BEGIN
-        INSERT INTO PESSOAS( NOME, RG, CPF_CNPJ, SALARIO, RUA, NUMERO, BAIRRO, CEP, TIPOS_PESSOA, CIDADE)
-        VALUES ( VNOME, VRG, VCPF_CNPJ, VSALARIO, VRUA, VNUMERO, VBAIRRO, VCEP, VCODTIPOPESSOA, VCODCIDADE)
-        RETURNING COD_PESSOA INTO VCODPESSOA;
-        RETURN VCODPESSOA;
-    END;
-    $$ LANGUAGE plpgsql;
-
-    -------- FUNCTION DE DELETE --------
-    CREATE OR REPLACE FUNCTION DEL_PESSOA
-    (
-        VCODPESSOA INTEGER
-    ) RETURNS INTEGER AS $$
-    DECLARE
-        VSTATUS INTEGER;
-    BEGIN
-        DELETE FROM PESSOAS 
-        WHERE COD_PESSOA = VCODPESSOA;
-        IF (FOUND = TRUE) THEN
-            VSTATUS:= 1;
-        ELSE
-            VSTATUS:= -1;
-        END IF;
-        RETURN VSTATUS;
-    END;
-    $$ LANGUAGE plpgsql;
-
-    -------- FUNCTION DE UPDATE --------
-    CREATE OR REPLACE FUNCTION UPD_PESSOA
-    (
-        VCODPESSOA INTEGER,
-        VNOME VARCHAR(30),
-        VRG VARCHAR(9),
-        VCPF_CNPJ VARCHAR(14),
-        VSALARIO NUMERIC,
-        VRUA VARCHAR(30),
-        VNUMERO VARCHAR(5),
-        VBAIRRO VARCHAR(30),
-        VCEP VARCHAR(8),
-        VCODTIPOPESSOA INTEGER,
-        VCODCIDADE INTEGER
-    ) RETURNS INTEGER AS $$
-    DECLARE
-        VSTATUS INTEGER;
-    BEGIN
-        UPDATE PESSOAS 
-        SET NOME = VNOME,
-            RG = VRG,
-            CPF_CNPJ = VCPF_CNPJ,
-            SALARIO = VSALARIO,
-            RUA = VRUA,
-            NUMERO = VNUMERO,
-            BAIRRO = VBAIRRO,
-            CEP = VCEP,
-            TIPOS_PESSOA = VCODTIPOPESSOA,
-            CIDADE = VCODCIDADE
-        WHERE COD_PESSOA = VCODPESSOA;
-        IF (FOUND = TRUE) THEN
-            VSTATUS:= 1;
-        ELSE
-            VSTATUS:= -1;
-        END IF;
-        RETURN VSTATUS;
-    END;
-    $$ LANGUAGE plpgsql;
