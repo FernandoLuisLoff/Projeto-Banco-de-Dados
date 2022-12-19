@@ -13,8 +13,11 @@
         INNER JOIN PRODUTOS B ON (B.COD_PRODUTO = A.PRODUTO)
         GROUP BY B.PRODUTO);
 
+        SELECT * FROM V_PRODUTOS;
+
     -------- CREATE VIEW V_VENDAS --------
-    -- 2o. view que exiba todas as vendas realizadas com seus quantidade, produto e qual cliente comprou, ordenadas por data, cliente e produto.
+    -- 2o. view que exiba todas as vendas realizadas com seus quantidade, produto e qual cliente comprou, ordenadas por data, 
+    -- cliente e produto.
         CREATE OR REPLACE VIEW V_VENDAS 
         AS SELECT C.NOME, D.PRODUTO, B.QTD_VENDIDA
         FROM VENDAS A
@@ -22,6 +25,8 @@
         LEFT JOIN PESSOAS C ON (C.COD_PESSOA = A.PESSOA)
         LEFT JOIN PRODUTOS D ON (D.COD_PRODUTO = B.PRODUTO)
         ORDER BY A.DATA_VENDA, C.NOME, D.PRODUTO;
+
+        SELECT * FROM V_VENDAS;
 
 -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -54,6 +59,8 @@
         END;
         $$ LANGUAGE plpgsql;
 
+        SELECT INS_PESSOA('Fernando','123456789','12345678910',10250,'Rua','123','Bairro','00000000',4,2);
+
         -------- FUNCTION DE DELETE --------
         CREATE OR REPLACE FUNCTION DEL_PESSOA
         (
@@ -72,6 +79,8 @@
             RETURN VSTATUS;
         END;
         $$ LANGUAGE plpgsql;
+
+        SELECT DEL_PESSOA(6);
 
         -------- FUNCTION DE UPDATE --------
         CREATE OR REPLACE FUNCTION UPD_PESSOA
@@ -112,6 +121,8 @@
         END;
         $$ LANGUAGE plpgsql;
 
+        SELECT UPD_PESSOA(7,'Luis','9878494','4564898',54686,'Rua','123','Bairro','00000000',4,2);
+
         -------- FUNCTION DE SELECT --------
         CREATE OR REPLACE FUNCTION SEL_PESSOA 
         (
@@ -119,7 +130,7 @@
             VNOME VARCHAR(30) DEFAULT NULL,
             VRG VARCHAR(9) DEFAULT NULL,
             VCPF_CNPJ VARCHAR(14) DEFAULT NULL,
-            VSALARIO NUMERIC DEFAULT NULL,
+            VSALARIO MONEY DEFAULT NULL,
             VRUA VARCHAR(30) DEFAULT NULL,
             VNUMERO VARCHAR(5) DEFAULT NULL,
             VBAIRRO VARCHAR(30) DEFAULT NULL,
@@ -131,7 +142,7 @@
             RNOME VARCHAR(30),
             RRG VARCHAR(9),
             RCPF_CNPJ VARCHAR(14),
-            RSALARIO NUMERIC,
+            RSALARIO MONEY,
             RRUA VARCHAR(30),
             RNUMERO VARCHAR(5),
             RBAIRRO VARCHAR(30),
@@ -149,41 +160,552 @@
                 BAIRRO,
                 CEP,
                 TIPOS_PESSOA,
-                CIDADE
+                CIDADE 
             FROM PESSOAS
             WHERE ((VCODPESSOA IS NULL) OR (COD_PESSOA = VCODPESSOA))
-            AND ((VNOME IS NULL) OR (NOME like VNOME||'%'))
-            AND ((VRG IS NULL) OR (RG like VRG||'%'))
-            AND ((VCPF_CNPJ IS NULL) OR (CPF_CNPJ like VCPF_CNPJ||'%'))
+            AND ((VNOME IS NULL) OR (NOME LIKE VNOME||'%'))
+            AND ((VRG IS NULL) OR (RG LIKE VRG||'%'))
+            AND ((VCPF_CNPJ IS NULL) OR (CPF_CNPJ LIKE VCPF_CNPJ||'%'))
             AND ((VSALARIO IS NULL) OR (SALARIO = VSALARIO))
-            AND ((VRUA IS NULL) OR (RUA like VRUA||'%'))
-            AND ((VNUMERO IS NULL) OR (NUMERO like VNUMERO||'%'))
-            AND ((VBAIRRO IS NULL) OR (BAIRRO like VBAIRRO||'%'))
-            AND ((VCEP IS NULL) OR (CEP like VCEP||'%'))					   
+            AND ((VRUA IS NULL) OR (RUA LIKE VRUA||'%'))
+            AND ((VNUMERO IS NULL) OR (NUMERO LIKE VNUMERO||'%'))
+            AND ((VBAIRRO IS NULL) OR (BAIRRO LIKE VBAIRRO||'%'))
+            AND ((VCEP IS NULL) OR (CEP LIKE VCEP||'%'))					   
             AND ((VCODTIPOPESSOA IS NULL) OR (TIPOS_PESSOA = VCODTIPOPESSOA))
             AND ((VCODCIDADE IS NULL) OR (CIDADE = VCODCIDADE));
-            RETURN;
-        END;
+			RETURN;
+		END;
         $$ LANGUAGE plpgsql
         CALLED ON NULL INPUT;
 
--- 1 procedure que receba como parâmetro o nome de um cliente, e imprima todas as vendas que este cliente esta vinculado, e totalize o total que este cliente pagou (somar todas as vendas)
+        SELECT SEL_PESSOA();
+        SELECT SEL_PESSOA(7,'Luis','9878494','4564898','54686','Rua','123','Bairro','00000000',4,2);
 
--- 1 procedure que receba como parâmetro um produto e exiba todas as movimentações deste produto (seja venda ou compra) com as quantidades e data.
+    -- 1 procedure que receba como parâmetro o nome de um cliente, e imprima todas as vendas que este cliente esta vinculado, 
+    -- e totalize o total que este cliente pagou (somar todas as vendas)
+        -------- FUNCTION COMPRAS_CLIENTE --------
+        CREATE OR REPLACE FUNCTION COMPRAS_CLIENTE
+        (
+            VNOME VARCHAR(30)
+        ) RETURNS VOID AS $$
+        DECLARE
+            VVENDAS RECORD;
+            VVALOR_TOTAL MONEY;
+        BEGIN
+
+            VVALOR_TOTAL := 0;
+
+            FOR VVENDAS IN
+            SELECT
+                D.NOME, 
+                C.PRODUTO,
+                B.QTD_VENDIDA,
+				A.DATA_VENDA,
+				A.OBSERVACAO,
+				A.DATA_VENDA,
+				B.VALOR_UNITARIO
+            FROM VENDAS A
+            LEFT JOIN PRODUTO_VENDIDO B ON(B.COD_VENDAS=A.COD_VENDAS)
+            LEFT JOIN PRODUTOS C ON(C.COD_PRODUTO=B.PRODUTO) 
+            LEFT JOIN PESSOAS D ON(D.COD_PESSOA=A.PESSOA)
+			WHERE D.NOME LIKE VNOME
+				
+            LOOP
+                RAISE NOTICE 'NOME: %', VVENDAS.NOME;
+                RAISE NOTICE 'ITEM: %', VVENDAS.PRODUTO;
+                RAISE NOTICE 'QUANTIDADE: %', VVENDAS.QTD_VENDIDA;
+                RAISE NOTICE 'VALOR: %', VVENDAS.VALOR_UNITARIO;
+                RAISE NOTICE 'VALOR TOTAL: %', VVENDAS.VALOR_UNITARIO*VVENDAS.QTD_VENDIDA;
+                RAISE NOTICE '';
+
+                VVALOR_TOTAL := VVALOR_TOTAL + VVENDAS.VALOR_UNITARIO * VVENDAS.QTD_VENDIDA;
+            END LOOP;
+
+            RAISE NOTICE 'VALOR TOTAL DAS VENDAS: %', VVALOR_TOTAL;
+        END;
+        $$ LANGUAGE plpgsql;
+
+        SELECT COMPRAS_CLIENTE('FERNANDO');
+
+    -- 1 procedure que receba como parâmetro um produto e exiba todas as movimentações deste produto (seja venda ou compra) 
+    -- com as quantidades e data.
+        -------- FUNCTION MOVIMENTACOES_PRODUTO --------
+        CREATE OR REPLACE FUNCTION MOVIMENTACOES_PRODUTO
+        (
+            VPRODUTO VARCHAR(30)
+        ) RETURNS VOID AS $$
+        DECLARE
+        
+            VMOVIMENTOS RECORD;
+
+        BEGIN
+            FOR VMOVIMENTOS IN
+            SELECT
+                A.PRODUTO,
+                B.QTD_OPERACAO,
+				B.DATA_ESTOQUE,
+				C.DESCRICAO
+					
+            FROM PRODUTOS A
+			LEFT JOIN ESTOQUE B ON (B.PRODUTO=A.COD_PRODUTO)
+			LEFT JOIN TIPO_MOVIMENTACAO C ON (C.COD_TIPO_MOVIMENTACAO=B.TIPO_MOVIMENTACAO)
+			WHERE A.PRODUTO LIKE VPRODUTO
+			
+            LOOP
+                RAISE NOTICE 'PRODUTO: %', VMOVIMENTOS.PRODUTO;
+                RAISE NOTICE 'MOVIMENTACAO: %', VMOVIMENTOS.DESCRICAO;
+				RAISE NOTICE 'QUANTIDADE: %', VMOVIMENTOS.QTD_OPERACAO;
+                RAISE NOTICE 'DATA: %', VMOVIMENTOS.DATA_ESTOQUE;
+				RAISE NOTICE '';
+            END LOOP;
+        END;
+        $$ LANGUAGE plpgsql;
+
+        SELECT MOVIMENTACOES_PRODUTO('UM PACOTE DE BOLACHA');
+
 
 -------- TRIGGERS --------
 
-    -------- TRIGGER PRODUTO_VENDIDO --------
-    -- 1 trigger na tabela produto_vendido que ao fazer um insert, update ou delete faça a atualização do estoque do respectivo produto.
+    -- 1 trigger na tabela produto_vendido que ao fazer um insert, update ou delete faça a atualização do estoque do 
+    -- respectivo produto.
+        -------- TRIGGER TG_ATUALIZACAO_PRODUTO --------
+        CREATE OR REPLACE FUNCTION LOG_ATUALIZA_ESTOQUE() RETURNS TRIGGER AS $LOG_ATUALIZA_ESTOQUE$
+        -- VARIAVEL QUE SERÁ UTILIZADA NA TRIGGER
+        DECLARE
+            VCOD_ESTOQUE RECORD;
+            VESTOQUE RECORD;
+            VVALOR_ATUAL NUMERIC;
+            VVALOR_OPERACAO NUMERIC;
+        BEGIN
+            IF (NEW.COD_VENDAS IS NOT NULL AND OLD.COD_VENDAS IS NOT NULL) THEN --TG_OP = 'UPDATE'
+                
+                FOR VCOD_ESTOQUE IN
+                SELECT
+                    MAX(COD_ESTOQUE) AS CODIGO
+                FROM ESTOQUE
+                WHERE PRODUTO = NEW.PRODUTO
+				LOOP
+				END LOOP;
 
-    -------- TRIGGER ATUALIZACAO --------
+                FOR VESTOQUE IN
+                SELECT
+                    COD_ESTOQUE,
+                    QTD_ANTERIOR,
+                    QTD_ATUAL,
+                    QTD_OPERACAO,
+                    DATA_ESTOQUE,
+                    PRODUTO,
+                    TIPO_ESTOQUE,
+                    TIPO_MOVIMENTACAO,
+                    LOTE,
+                    VENDA
+                FROM ESTOQUE
+                WHERE COD_ESTOQUE = VCOD_ESTOQUE.CODIGO
+				LOOP
+
+                IF (NEW.QTD_VENDIDA>OLD.QTD_VENDIDA) THEN
+                    VVALOR_OPERACAO = NEW.QTD_VENDIDA-OLD.QTD_VENDIDA;
+                    VVALOR_ATUAL = VESTOQUE.QTD_ATUAL + VVALOR_OPERACAO;
+                ELSIF (NEW.QTD_VENDIDA<OLD.QTD_VENDIDA) THEN
+                    VVALOR_OPERACAO = OLD.QTD_VENDIDA-NEW.QTD_VENDIDA;
+                    VVALOR_ATUAL = VESTOQUE.QTD_ATUAL - VVALOR_OPERACAO;
+                ELSE
+                    VVALOR_OPERACAO = 0;
+                    VVALOR_ATUAL = VESTOQUE.QTD_ATUAL;
+                END IF;
+
+				END LOOP;
+
+                INSERT INTO ESTOQUE(QTD_ANTERIOR,QTD_ATUAL,QTD_OPERACAO,DATA_ESTOQUE,PRODUTO,TIPO_ESTOQUE,TIPO_MOVIMENTACAO,LOTE,VENDA)
+                VALUES (VESTOQUE.QTD_ATUAL,VVALOR_ATUAL,VVALOR_OPERACAO,CURRENT_TIMESTAMP,VESTOQUE.PRODUTO,VESTOQUE.TIPO_ESTOQUE,VESTOQUE.TIPO_MOVIMENTACAO,VESTOQUE.LOTE,VESTOQUE.VENDA);
+                
+            END IF;
+            IF (NEW.COD_VENDAS IS NOT NULL AND OLD.COD_VENDAS ISNULL) THEN --TG_OP = 'INSERT'
+
+                FOR VCOD_ESTOQUE IN
+                SELECT
+                    MAX(COD_ESTOQUE) AS CODIGO
+                FROM ESTOQUE
+                WHERE PRODUTO = NEW.PRODUTO
+				LOOP
+				END LOOP;
+
+                FOR VESTOQUE IN
+                SELECT
+                    COD_ESTOQUE,
+                    QTD_ANTERIOR,
+                    QTD_ATUAL,
+                    QTD_OPERACAO,
+                    DATA_ESTOQUE,
+                    PRODUTO,
+                    TIPO_ESTOQUE,
+                    TIPO_MOVIMENTACAO,
+                    LOTE,
+                    VENDA
+                FROM ESTOQUE
+                WHERE COD_ESTOQUE = VCOD_ESTOQUE.CODIGO
+				LOOP
+                VVALOR_ATUAL = VESTOQUE.QTD_ATUAL + NEW.QTD_VENDIDA;
+				END LOOP;
+
+                INSERT INTO ESTOQUE(QTD_ANTERIOR,QTD_ATUAL,QTD_OPERACAO,DATA_ESTOQUE,PRODUTO,TIPO_ESTOQUE,TIPO_MOVIMENTACAO,LOTE,VENDA)
+                VALUES (VESTOQUE.QTD_ATUAL,VVALOR_ATUAL,NEW.QTD_VENDIDA,CURRENT_TIMESTAMP,VESTOQUE.PRODUTO,VESTOQUE.TIPO_ESTOQUE,VESTOQUE.TIPO_MOVIMENTACAO,VESTOQUE.LOTE,VESTOQUE.VENDA);
+            END IF;
+            IF (NEW.COD_VENDAS ISNULL AND OLD.COD_VENDAS IS NOT NULL) THEN --TG_OP = 'DELETE'
+
+                FOR VCOD_ESTOQUE IN
+                SELECT
+                    MAX(COD_ESTOQUE) AS CODIGO
+                FROM ESTOQUE
+                WHERE PRODUTO = OLD.PRODUTO
+				LOOP
+				END LOOP;
+
+                FOR VESTOQUE IN
+                SELECT
+                    COD_ESTOQUE,
+                    QTD_ANTERIOR,
+                    QTD_ATUAL,
+                    QTD_OPERACAO,
+                    DATA_ESTOQUE,
+                    PRODUTO,
+                    TIPO_ESTOQUE,
+                    TIPO_MOVIMENTACAO,
+                    LOTE,
+                    VENDA
+                FROM ESTOQUE
+                WHERE COD_ESTOQUE = VCOD_ESTOQUE.CODIGO
+				LOOP
+                VVALOR_ATUAL = VESTOQUE.QTD_ATUAL - OLD.QTD_VENDIDA;
+				END LOOP;
+
+                INSERT INTO ESTOQUE(QTD_ANTERIOR,QTD_ATUAL,QTD_OPERACAO,DATA_ESTOQUE,PRODUTO,TIPO_ESTOQUE,TIPO_MOVIMENTACAO,LOTE,VENDA)
+                VALUES (VESTOQUE.QTD_ATUAL,VVALOR_ATUAL,OLD.QTD_VENDIDA,CURRENT_TIMESTAMP,VESTOQUE.PRODUTO,VESTOQUE.TIPO_ESTOQUE,VESTOQUE.TIPO_MOVIMENTACAO,VESTOQUE.LOTE,VESTOQUE.VENDA);
+                
+            END IF;
+			RETURN NEW;
+        END;
+        $LOG_ATUALIZA_ESTOQUE$ LANGUAGE plpgsql;
+
+        CREATE OR REPLACE TRIGGER TG_ATUALIZACAO_PRODUTO AFTER INSERT OR UPDATE OR DELETE ON PRODUTO_VENDIDO
+        FOR EACH ROW EXECUTE PROCEDURE LOG_ATUALIZA_ESTOQUE();
+
+        ------- Teste Insert -------
+            INSERT INTO produto_vendido(cod_vendas,produto,qtd_vendida,valor_unitario)
+            VALUES(1,5,5,15);
+        
+        ------- Teste Delete -------
+            DELETE FROM produto_vendido
+            WHERE cod_vendas = 1
+            AND PRODUTO = 5;
+
+        ------- Teste Update -------
+            UPDATE produto_vendido
+            SET QTD_VENDIDA = 6
+            WHERE cod_vendas = 1
+            AND PRODUTO = 5;
+
+        ----------------------------
+            SELECT * FROM produto_vendido;
+
+            SELECT * FROM ESTOQUE
+            WHERE PRODUTO = 5
+            ORDER BY COD_ESTOQUE;
+    
     -- 1 trigger na tabela lotes que ao fazer um insert, update ou delete faça a atualização do estoque do respectivo produto.
+        -------- TRIGGER TG_ATUALIZACAO_LOTES --------
+        CREATE OR REPLACE FUNCTION LOG_ATUALIZA_ESTOQUE_LOTE() RETURNS TRIGGER AS $LOG_ATUALIZA_ESTOQUE_LOTE$
+        -- VARIAVEL QUE SERÁ UTILIZADA NA TRIGGER
+        DECLARE
+            VCOD_ESTOQUE RECORD;
+            VESTOQUE RECORD;
+            VVALOR_ATUAL NUMERIC;
+            VVALOR_OPERACAO NUMERIC;
+        BEGIN
+            IF (NEW.COD_LOTE IS NOT NULL AND OLD.COD_LOTE IS NOT NULL) THEN --TG_OP = 'UPDATE'
 
-    -------- TRIGGER LOG_TABELA_VENDA --------
-    -- 1 trigger de log da tabela venda, deve ser logada toda a operação de realizada na tabela, armazenado o registro anterior, posterior, data e hora, usuário, e qual operação realizada. Criar uma tabela para armazenar este log.
+                FOR VCOD_ESTOQUE IN
+                SELECT
+                    MAX(COD_ESTOQUE) AS CODIGO
+                FROM ESTOQUE
+                WHERE PRODUTO = NEW.PRODUTO
+				LOOP
+				END LOOP;
 
-    -------- TRIGGER LOG_TABELA_DESPESAS --------
-    -- 1 trigger de log da tabela despesas, deve ser logada toda a operação de realizada na tabela, armazenado o registro anterior, posterior, data e hora, usuário, e qual operação realizada. Criar uma tabela para armazenar este log.
+                FOR VESTOQUE IN
+                SELECT
+                    COD_ESTOQUE,
+                    QTD_ANTERIOR,
+                    QTD_ATUAL,
+                    QTD_OPERACAO,
+                    DATA_ESTOQUE,
+                    PRODUTO,
+                    TIPO_ESTOQUE,
+                    TIPO_MOVIMENTACAO,
+                    LOTE,
+                    VENDA
+                FROM ESTOQUE
+                WHERE COD_ESTOQUE = VCOD_ESTOQUE.CODIGO
+				LOOP
+
+                IF (NEW.QTD_ITENS>OLD.QTD_ITENS) THEN
+                    VVALOR_OPERACAO = NEW.QTD_ITENS-OLD.QTD_ITENS;
+                    VVALOR_ATUAL = VESTOQUE.QTD_ATUAL + VVALOR_OPERACAO;
+                ELSIF (NEW.QTD_ITENS<OLD.QTD_ITENS) THEN
+                    VVALOR_OPERACAO = OLD.QTD_ITENS-NEW.QTD_ITENS;
+                    VVALOR_ATUAL = VESTOQUE.QTD_ATUAL - VVALOR_OPERACAO;
+                ELSE
+                    VVALOR_OPERACAO = 0;
+                    VVALOR_ATUAL = VESTOQUE.QTD_ATUAL;
+                END IF;
+
+				END LOOP;
+
+                INSERT INTO ESTOQUE(QTD_ANTERIOR,QTD_ATUAL,QTD_OPERACAO,DATA_ESTOQUE,PRODUTO,TIPO_ESTOQUE,TIPO_MOVIMENTACAO,LOTE,VENDA)
+                VALUES (VESTOQUE.QTD_ATUAL,VVALOR_ATUAL,VVALOR_OPERACAO,CURRENT_TIMESTAMP,VESTOQUE.PRODUTO,VESTOQUE.TIPO_ESTOQUE,VESTOQUE.TIPO_MOVIMENTACAO,VESTOQUE.LOTE,VESTOQUE.VENDA);
+            
+            END IF;
+            IF (NEW.COD_LOTE IS NOT NULL AND OLD.COD_LOTE ISNULL) THEN --TG_OP = 'INSERT'
+
+                FOR VCOD_ESTOQUE IN
+                SELECT
+                    MAX(COD_ESTOQUE) AS CODIGO
+                FROM ESTOQUE
+                WHERE PRODUTO = NEW.PRODUTO
+				LOOP
+				END LOOP;
+
+                FOR VESTOQUE IN
+                SELECT
+                    COD_ESTOQUE,
+                    QTD_ANTERIOR,
+                    QTD_ATUAL,
+                    QTD_OPERACAO,
+                    DATA_ESTOQUE,
+                    PRODUTO,
+                    TIPO_ESTOQUE,
+                    TIPO_MOVIMENTACAO,
+                    LOTE,
+                    VENDA
+                FROM ESTOQUE
+                WHERE COD_ESTOQUE = VCOD_ESTOQUE.CODIGO
+                LOOP
+                    VVALOR_ATUAL = VESTOQUE.QTD_ATUAL + NEW.QTD_ITENS;
+				END LOOP;
+
+                INSERT INTO ESTOQUE(QTD_ANTERIOR,QTD_ATUAL,QTD_OPERACAO,DATA_ESTOQUE,PRODUTO,TIPO_ESTOQUE,TIPO_MOVIMENTACAO,LOTE,VENDA)
+                VALUES (VESTOQUE.QTD_ATUAL,VVALOR_ATUAL,NEW.QTD_ITENS,CURRENT_TIMESTAMP,VESTOQUE.PRODUTO,VESTOQUE.TIPO_ESTOQUE,VESTOQUE.TIPO_MOVIMENTACAO,VESTOQUE.LOTE,VESTOQUE.VENDA);
+            END IF;
+            IF (NEW.COD_LOTE ISNULL AND OLD.COD_LOTE IS NOT NULL) THEN --TG_OP = 'DELETE'
+
+                FOR VCOD_ESTOQUE IN
+                SELECT
+                    MAX(COD_ESTOQUE) AS CODIGO
+                FROM ESTOQUE
+                WHERE PRODUTO = OLD.PRODUTO
+				LOOP
+				END LOOP;
+
+                FOR VESTOQUE IN
+                SELECT
+                    COD_ESTOQUE,
+                    QTD_ANTERIOR,
+                    QTD_ATUAL,
+                    QTD_OPERACAO,
+                    DATA_ESTOQUE,
+                    PRODUTO,
+                    TIPO_ESTOQUE,
+                    TIPO_MOVIMENTACAO,
+                    LOTE,
+                    VENDA
+                FROM ESTOQUE
+                WHERE COD_ESTOQUE = VCOD_ESTOQUE.CODIGO
+				LOOP
+                VVALOR_ATUAL = VESTOQUE.QTD_ATUAL - OLD.QTD_ITENS;
+				END LOOP;
+
+                INSERT INTO ESTOQUE(QTD_ANTERIOR,QTD_ATUAL,QTD_OPERACAO,DATA_ESTOQUE,PRODUTO,TIPO_ESTOQUE,TIPO_MOVIMENTACAO,LOTE,VENDA)
+                VALUES (VESTOQUE.QTD_ATUAL,VVALOR_ATUAL,OLD.QTD_ITENS,CURRENT_TIMESTAMP,VESTOQUE.PRODUTO,VESTOQUE.TIPO_ESTOQUE,VESTOQUE.TIPO_MOVIMENTACAO,VESTOQUE.LOTE,VESTOQUE.VENDA);
+            
+            END IF;
+			RETURN NEW;
+        END;
+        $LOG_ATUALIZA_ESTOQUE_LOTE$ LANGUAGE plpgsql;
+
+        CREATE OR REPLACE TRIGGER TG_ATUALIZACAO_LOTES AFTER INSERT OR UPDATE OR DELETE ON LOTES
+        FOR EACH ROW EXECUTE PROCEDURE LOG_ATUALIZA_ESTOQUE_LOTE();
+
+        ------- Teste Insert -------
+            INSERT INTO LOTES(DATA_ENTRADA,VECIMENTO,QTD_ITENS,PRODUTO,FORNECEDOR)
+            VALUES('13/10/2022','13/10/2023',10,1,1);
+        
+        ------- Teste Delete -------
+            DELETE FROM LOTES
+            WHERE COD_LOTE = 8;
+
+        ------- Teste Update -------
+            UPDATE lotes
+            SET qtd_itens = 10
+            WHERE cod_lote = 5;
+
+        ----------------------------
+            SELECT * FROM LOTES
+            ORDER BY COD_LOTE DESC;
+
+            SELECT * FROM ESTOQUE
+            ORDER BY COD_ESTOQUE DESC;
+    
+    -- 1 trigger de log da tabela venda, deve ser logada toda a operação de realizada na tabela, armazenado o registro anterior, 
+    -- posterior, data e hora, usuário, e qual operação realizada. Criar uma tabela para armazenar este log.
+        -------- TRIGGER TG_LOG_VENDAS --------
+
+        CREATE TABLE LOG_VENDAS
+        (
+            REGISTRO_OLD TEXT NOT NULL,
+            REGISTRO_NEW TEXT NOT NULL,
+            DATA_HORA TIMESTAMP,
+            OPERACAO CHAR(1) NOT NULL,
+            USUARIO VARCHAR (30) NOT NULL
+        );
+
+        -- CRIAÇÃO DA TRIGGER
+        CREATE OR REPLACE FUNCTION LOG_VENDAS() RETURNS TRIGGER AS $LOG_VENDAS$
+        -- VARIAVEL QUE SERÁ UTILIZADA NA TRIGGER
+            DECLARE VREGISTROOLD TEXT;
+            VREGISTRONEW TEXT;
+        BEGIN
+            -- VERIFICA SE FOI FEITA ALGUMA ALTERAÇÃO (UPDATE)
+            IF (NEW.COD_VENDAS IS NOT NULL AND OLD.COD_VENDAS IS NOT NULL) THEN --TG_OP = 'UPDATE'
+
+                VREGISTROOLD = OLD.COD_VENDAS ||','|| OLD.OBSERVACAO || ',' || OLD.DATA_VENDA || ',' || OLD.VALOR_TOTAL || ',' || OLD.PESSOA;
+                VREGISTRONEW = NEW.COD_VENDAS ||','|| NEW.OBSERVACAO || ',' || NEW.DATA_VENDA || ',' || NEW.VALOR_TOTAL || ',' || NEW.PESSOA;
+
+                INSERT INTO LOG_VENDAS(DATA_HORA,USUARIO,OPERACAO,REGISTRO_OLD, REGISTRO_NEW)
+                VALUES (CURRENT_TIMESTAMP, CURRENT_USER, 'U',VREGISTROOLD,VREGISTRONEW);
+
+                RAISE NOTICE 'LOG DE UPDATE GRAVADO.';
+                RETURN NEW;
+            END IF;
+            -- VERIFICA SE FOI FEITA ALGUMA INSERÇÃO
+            IF (NEW.COD_VENDAS IS NOT NULL AND OLD.COD_VENDAS ISNULL) THEN --TG_OP = 'INSERT'
+
+                VREGISTROOLD = '-';
+                VREGISTRONEW = NEW.COD_VENDAS ||','|| NEW.OBSERVACAO || ',' || NEW.DATA_VENDA || ',' || NEW.VALOR_TOTAL || ',' || NEW.PESSOA;
+
+                INSERT INTO LOG_VENDAS(DATA_HORA,USUARIO,OPERACAO,REGISTRO_OLD, REGISTRO_NEW)
+                VALUES (CURRENT_TIMESTAMP, CURRENT_USER, 'I', VREGISTROOLD, VREGISTRONEW); 	
+                RAISE NOTICE 'LOG DE INSERT GRAVADO.';
+                RETURN NEW;
+            END IF;
+            --VERIFICA SE FOI FEITA ALGUMA DELEÇÃO
+            IF (NEW.COD_VENDAS ISNULL AND OLD.COD_VENDAS IS NOT NULL) THEN --TG_OP = 'DELETE'
+                VREGISTROOLD = OLD.COD_VENDAS ||','|| OLD.OBSERVACAO || ',' || OLD.DATA_VENDA || ',' || OLD.VALOR_TOTAL || ',' || OLD.PESSOA;
+                VREGISTRONEW = '-';
+                INSERT INTO LOG_VENDAS(DATA_HORA,USUARIO,OPERACAO,REGISTRO_OLD, REGISTRO_NEW)
+                VALUES (CURRENT_TIMESTAMP, CURRENT_USER,'D', VREGISTROOLD, VREGISTRONEW); 	
+                RAISE NOTICE 'LOG DE DELETE GRAVADO';
+                RETURN OLD;
+            END IF;
+        END;
+        $LOG_VENDAS$ LANGUAGE plpgsql;
+
+        CREATE TRIGGER TG_LOG_VENDAS BEFORE INSERT OR UPDATE OR DELETE ON VENDAS
+        FOR EACH ROW EXECUTE PROCEDURE LOG_VENDAS();
+
+        ------- Teste Update -------
+        UPDATE vendas
+        SET valor_total = 15
+        WHERE cod_vendas = 1
+
+        ------- Teste Insert -------
+        INSERT INTO vendas(observacao,data_venda,valor_total,pessoa)
+        VALUES('Teste',CURRENT_TIMESTAMP,123,2); 
+        
+        ------- Teste Delete -------
+        DELETE FROM VENDAS
+        WHERE COD_VENDAS = 5
+
+        ----------------------------
+        SELECT * FROM vendas
+        SELECT * FROM LOG_VENDAS
+    
+    -- 1 trigger de log da tabela despesas, deve ser logada toda a operação de realizada na tabela, armazenado o registro anterior, 
+    -- posterior, data e hora, usuário, e qual operação realizada. Criar uma tabela para armazenar este log.
+        -------- TRIGGER TG_LOG_DESPESAS --------
+
+        CREATE TABLE LOG_DESPESAS
+        (
+            REGISTRO_OLD TEXT NOT NULL,
+            REGISTRO_NEW TEXT NOT NULL,
+            DATA_HORA TIMESTAMP,
+            OPERACAO CHAR(1) NOT NULL,
+            USUARIO VARCHAR (30) NOT NULL
+        );
+
+        -- CRIAÇÃO DA TRIGGER
+        CREATE OR REPLACE FUNCTION LOG_DESPESAS() RETURNS TRIGGER AS $LOG_DESPESAS$
+        -- VARIAVEL QUE SERÁ UTILIZADA NA TRIGGER
+            DECLARE VREGISTROOLD TEXT;
+            VREGISTRONEW TEXT;
+        BEGIN
+            -- VERIFICA SE FOI FEITA ALGUMA ALTERAÇÃO (UPDATE)
+            IF (NEW.COD_DESPESA IS NOT NULL AND OLD.COD_DESPESA IS NOT NULL) THEN --TG_OP = 'UPDATE'
+
+                VREGISTROOLD = OLD.COD_DESPESA ||','|| OLD.VALOR || ',' || OLD.OBSERVACAO || ',' || OLD.DATA_DESPESA || ',' || OLD.VENCIMENTO || ',' || OLD.PESSOA;
+                VREGISTRONEW = NEW.COD_DESPESA ||','|| NEW.VALOR || ',' || NEW.OBSERVACAO || ',' || NEW.DATA_DESPESA || ',' || NEW.VENCIMENTO || ',' || NEW.PESSOA;
+
+                INSERT INTO LOG_DESPESAS(DATA_HORA,USUARIO,OPERACAO,REGISTRO_OLD, REGISTRO_NEW)
+                VALUES (CURRENT_TIMESTAMP, CURRENT_USER, 'U',VREGISTROOLD,VREGISTRONEW);
+
+                RAISE NOTICE 'LOG DE UPDATE GRAVADO.';
+                RETURN NEW;
+            END IF;
+            -- VERIFICA SE FOI FEITA ALGUMA INSERÇÃO
+            IF (NEW.COD_DESPESA IS NOT NULL AND OLD.COD_DESPESA ISNULL) THEN --TG_OP = 'INSERT'
+
+                VREGISTROOLD = '-';
+                VREGISTRONEW = NEW.COD_DESPESA ||','|| NEW.VALOR || ',' || NEW.OBSERVACAO || ',' || NEW.DATA_DESPESA || ',' || NEW.VENCIMENTO || ',' || NEW.PESSOA;
+
+                INSERT INTO LOG_DESPESAS(DATA_HORA,USUARIO,OPERACAO,REGISTRO_OLD, REGISTRO_NEW)
+                VALUES (CURRENT_TIMESTAMP, CURRENT_USER, 'I', VREGISTROOLD, VREGISTRONEW); 
+                
+                RAISE NOTICE 'LOG DE INSERT GRAVADO.';
+                RETURN NEW;
+            END IF;
+            --VERIFICA SE FOI FEITA ALGUMA DELEÇÃO
+            IF (NEW.COD_DESPESA ISNULL AND OLD.COD_DESPESA IS NOT NULL) THEN --TG_OP = 'DELETE'
+                
+                VREGISTROOLD = OLD.COD_DESPESA ||','|| OLD.VALOR || ',' || OLD.OBSERVACAO || ',' || OLD.DATA_DESPESA || ',' || OLD.VENCIMENTO || ',' || OLD.PESSOA;
+                VREGISTRONEW = '-';
+                
+                INSERT INTO LOG_DESPESAS(DATA_HORA,USUARIO,OPERACAO,REGISTRO_OLD, REGISTRO_NEW)
+                VALUES (CURRENT_TIMESTAMP, CURRENT_USER,'D', VREGISTROOLD, VREGISTRONEW); 	
+                
+                RAISE NOTICE 'LOG DE DELETE GRAVADO';
+                RETURN OLD;
+            END IF;
+        END;
+        $LOG_DESPESAS$ LANGUAGE plpgsql;
+
+        CREATE TRIGGER TG_LOG_DESPESAS BEFORE INSERT OR UPDATE OR DELETE ON DESPESAS
+        FOR EACH ROW EXECUTE PROCEDURE LOG_DESPESAS();
+
+        ------- Teste Update -------
+        UPDATE despesas
+        SET valor = 26
+        WHERE cod_despesa = 2
+
+        ------- Teste Insert -------
+        INSERT INTO DESPESAS(valor,observacao,data_despesa,vencimento,pessoa)
+        VALUES(15,'TESTE',CURRENT_TIMESTAMP,CURRENT_TIMESTAMP,1);
+        
+        ------- Teste Delete -------
+        DELETE FROM despesas
+        WHERE cod_despesa = 3
+
+        ----------------------------
+        SELECT * FROM despesas
+        SELECT * FROM LOG_DESPESAS
 
 -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
